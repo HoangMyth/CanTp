@@ -25,7 +25,8 @@ class ReceiverNode:
                     received_frames.append(list(message.data))
                     
                     # Print received consecutive frame immediately
-                    print(f"Received Consecutive Frame {consecutive_count}: {list(message.data)}")
+                    
+                    # print(f"Received Consecutive Frame {consecutive_count}: {list(message.data)}")
 
                     # Check if block size has been reached or if it's the last frame
                     remaining_data_length = self.cantp.total_length - len(self.cantp.received_data)
@@ -37,12 +38,9 @@ class ReceiverNode:
                         break
 
                     if consecutive_count == block_size:
-                        remaining_frames = (remaining_data_length + 6) // 7  # Calculate remaining frames
-                        block_size = min(3, remaining_frames)
-
                         # Send Flow Control (CTS) after every 3 consecutive frames or remaining frames
                         print("Sending Flow Control (CTS)...")
-                        self.cantp.send_flow_control('CTS', block_size=block_size)
+                        self.cantp.send_flow_control('CTS', block_size=3)
 
                         consecutive_count = 0  # Reset counter
                         received_frames.clear()  # Clear buffer

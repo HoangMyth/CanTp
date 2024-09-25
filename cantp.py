@@ -32,7 +32,7 @@ class CanTp:
         data_length = len(data)
         
         if self.can_type == CanType.CAN_2_0:
-            if len(data) <= 7:  # Single Frame
+            if data_length <= 7:  # Single Frame
                 pci_byte = 0x00 | data_length
                 frames.append([pci_byte] + list(data))  # Single Frame
             else:
@@ -45,27 +45,41 @@ class CanTp:
                 # Consecutive Frames
                 while data:
                     self.sequence_number += 1
-                    frames.append([0x20 | (self.sequence_number & 0x0F)] + list(data[:7]))
+                    frame_data = list(data[:7])
+                    
+                    # Nếu consecutive frame cuối không đủ 7 byte, thêm padding
+                    if len(frame_data) < 7:
+                        frame_data += [0x00] * (7 - len(frame_data))
+                    
+                    frames.append([0x20 | (self.sequence_number & 0x0F)] + frame_data)
                     data = data[7:]
+                    
         elif self.can_type == CanType.CAN_FD:
-            # Used CanFD
-            if len(data) <= 63:  # Single Frame
+            # Used CAN FD
+            if data_length <= 63:  # Single Frame
                 pci_byte = 0x00 | data_length
                 frames.append([pci_byte] + list(data))  # Single Frame
             else:
                 # First Frame
                 pci_higherbit = 0x10 | (data_length >> 8)
                 pci_lowerbit = data_length & 0xFF
-                frames.append([pci_higherbit, pci_lowerbit] + list(data[:62]))  # CAN FD First Frame can contain 62 byte
+                frames.append([pci_higherbit, pci_lowerbit] + list(data[:62]))  # CAN FD First Frame can contain 62 bytes
                 data = data[62:]
 
                 # Consecutive Frames
                 while data:
                     self.sequence_number += 1
-                    frames.append([0x20 | (self.sequence_number & 0x0F)] + list(data[:63]))
+                    frame_data = list(data[:63])
+                    
+                    # Nếu consecutive frame cuối không đủ 63 byte, thêm padding
+                    if len(frame_data) < 63:
+                        frame_data += [0x00] * (63 - len(frame_data))
+                    
+                    frames.append([0x20 | (self.sequence_number & 0x0F)] + frame_data)
                     data = data[63:]
 
         return frames
+
 
     def process_frame(self, frame):
         pci_type = (frame[0] & 0xF0) >> 4  # Type frame: single frame, first frame, consecutive frame
