@@ -1,13 +1,25 @@
 import can
+import ics
 import time
 from cantp import CanTp
 
+# When using ValueCAN you just need to change interface from "virtual" to "neovi"
+
 class TransmitterNode:
-    def __init__(self, channel='test', bustype='virtual'):
+    def __init__(self, channel='1', interface='virtual', bitrate = 500000):
         # Use Virtual CAN bus
-        self.bus = can.interface.Bus(channel=channel, bustype=bustype)
+        self.bus = can.interface.Bus(channel=channel, interface=interface, bitrate=bitrate)
         self.cantp = CanTp(self.bus)
         self.sequence_number = 1
+        
+    def __enter__(self):
+        # When use 'with', __enter__ called
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # When End 'with', __exit__ is called
+        self.bus.shutdown()
+        print("CAN bus connection closed.")
 
     def send_message(self, data):
         frames = self.cantp.fragment(data)
@@ -56,3 +68,12 @@ class TransmitterNode:
                                  break
             else:
                 print("No Flow Control received, stopping transmission.")
+
+#When use ValueCAN for Transmit and Receive
+if __name__ == "__main__":
+    with TransmitterNode(channel='1', interface='neovi', bitrate=500000) as transmitter:
+        # input_string = input("Ennter Your Data: \n")
+        # message_data = bytearray(input_string.encode('utf-8'))
+        message_data = bytearray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15,16,17,18,19,20,21])  # Dữ liệu truyền vào
+        transmitter.send_message(message_data)
+        # transmitter.bus.shutdown()

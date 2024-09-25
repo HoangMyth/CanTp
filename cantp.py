@@ -1,35 +1,72 @@
 import can
 import time
+from enum import Enum
 
+#Define control type for FlowControl
+CTS                     = 0x00
+WAIT                    = 0x10
+OVFLW                   = 0x20
+
+#Define Frame type
+class FrameType(Enum):
+    SINGLE_FRAME        = 0x00
+    FIRST_FRAME         = 0x10
+    CONSECUTIVE_FRAME   = 0x20
+    FLOW_CONTROL        = 0X30
+    
+#Define CanType
+class CanType(Enum):
+    CAN_2_0             = 0
+    CAN_FD              = 1
+    
 class CanTp:
-    def __init__(self, bus):
+    def __init__(self, bus, can_type=CanType.CAN_2_0):
         self.sequence_number = 0
         self.received_data = bytearray()
         self.total_length = 0
         self.bus = bus
+        self.can_type = can_type
 
     def fragment(self, data):
         frames = []
         data_length = len(data)
         
-        if len(data) <= 7:  # Single Frame
-            pci_byte = 0x00 | data_length
-            frames.append([pci_byte] + list(data))  # Single Frame
-        else:
-            # First Frame
-            pci_higherbit = 0x10 | (data_length >> 8)
-            pci_lowerbit = data_length & 0xFF
-            frames.append([pci_higherbit, pci_lowerbit] + list(data[:6]))
-            data = data[6:]
+        if self.can_type == CanType.CAN_2_0:
+            if len(data) <= 7:  # Single Frame
+                pci_byte = 0x00 | data_length
+                frames.append([pci_byte] + list(data))  # Single Frame
+            else:
+                # First Frame
+                pci_higherbit = 0x10 | (data_length >> 8)
+                pci_lowerbit = data_length & 0xFF
+                frames.append([pci_higherbit, pci_lowerbit] + list(data[:6]))
+                data = data[6:]
+                
+                # Consecutive Frames
+                while data:
+                    self.sequence_number += 1
+                    frames.append([0x20 | (self.sequence_number & 0x0F)] + list(data[:7]))
+                    data = data[7:]
+        elif self.can_type == CanType.CAN_FD:
+            # Used CanFD
+            if len(data) <= 63:  # Single Frame
+                pci_byte = 0x00 | data_length
+                frames.append([pci_byte] + list(data))  # Single Frame
+            else:
+                # First Frame
+                pci_higherbit = 0x10 | (data_length >> 8)
+                pci_lowerbit = data_length & 0xFF
+                frames.append([pci_higherbit, pci_lowerbit] + list(data[:62]))  # CAN FD First Frame can contain 62 byte
+                data = data[62:]
 
-            # Consecutive Frames
-            while data:
-                self.sequence_number += 1
-                frames.append([0x20 | (self.sequence_number & 0x0F)] + list(data[:7]))
-                data = data[7:]
+                # Consecutive Frames
+                while data:
+                    self.sequence_number += 1
+                    frames.append([0x20 | (self.sequence_number & 0x0F)] + list(data[:63]))
+                    data = data[63:]
 
         return frames
-    
+
     def process_frame(self, frame):
         pci_type = (frame[0] & 0xF0) >> 4  # Type frame: single frame, first frame, consecutive frame
 
@@ -41,7 +78,12 @@ class CanTp:
         elif pci_type == 0x1:  # First Frame
             self.total_length = ((frame[0] & 0x0F) << 8) + frame[1]
             self.received_data = bytearray()
-            self.received_data.extend(frame[2:8])
+            
+            if self.can_type == CanType.CAN_2_0:
+                self.received_data.extend(frame[2:8])  # CAN 2.0 First Frame contain 6 byte
+            elif self.can_type == CanType.CAN_FD:
+                self.received_data.extend(frame[2:64])  # CAN FD First Frame contain 62 byte
+
             self.sequence_number = 1
 
             print(f"First Frame received, total length of Data is: {self.total_length}. Sending Flow Control...")
@@ -56,12 +98,16 @@ class CanTp:
                 return False  # False
             
             # Merge data from CF
-            self.received_data.extend(frame[1:8])
+            if self.can_type == CanType.CAN_2_0:
+                self.received_data.extend(frame[1:8])  # CAN 2.0 Consecutive Frame can contain 7 byte
+            elif self.can_type == CanType.CAN_FD:
+                self.received_data.extend(frame[1:64])  # CAN FD Consecutive Frame can contain 63 byte
+
             self.sequence_number += 1  # Increase the order number
             
             # Check Data received enough
             if len(self.received_data) >= self.total_length:
-                print("Reassembled message successfully!")
+                # print("Reassembled message successfully!")
                 return True  # Enough data received
 
         return False  # Not enough data received
@@ -86,7 +132,11 @@ class CanTp:
         flow_control_frame = [pci_byte, block_size, st_min] + [0x00, 0x00, 0x00]  # other byte is N/A
 
         # Gửi frame Flow Control
-        message = can.Message(arbitration_id=0x7DF, data=flow_control_frame, is_extended_id=False)
+        if self.can_type == CanType.CAN_FD:
+            message = can.Message(arbitration_id=0x7DF, data=flow_control_frame, is_extended_id=False, is_fd=True)
+        else:
+            message = can.Message(arbitration_id=0x7DF, data=flow_control_frame, is_extended_id=False, is_fd=False)
+
         self.bus.send(message)
         print(f"Sent Flow Control frame: {flow_control_frame}")
     
