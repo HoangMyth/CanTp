@@ -128,10 +128,10 @@ class CanTp:
         # Byte #3: Separation Time Minimum (STmin)
         st_min = st_min & 0xFF  # STmin max 255 ms
 
-        # Tạo frame Flow Control
+        # Creat frame Flow Control
         flow_control_frame = [pci_byte, block_size, st_min] + [0x00, 0x00, 0x00]  # other byte is N/A
 
-        # Gửi frame Flow Control
+        # Send frame Flow Control
         if self.can_type == CanType.CAN_FD:
             message = can.Message(arbitration_id=0x7DF, data=flow_control_frame, is_extended_id=False, is_fd=True)
         else:
