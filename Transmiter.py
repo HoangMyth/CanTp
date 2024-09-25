@@ -74,6 +74,6 @@ if __name__ == "__main__":
     with TransmitterNode(channel='1', interface='neovi', bitrate=500000) as transmitter:
         # input_string = input("Ennter Your Data: \n")
         # message_data = bytearray(input_string.encode('utf-8'))
-        message_data = bytearray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10,11,12,13,14,15,16,17,18,19,20,21])  # Dữ liệu truyền vào
+        message_data = bytearray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21])  #Data Transmit
         transmitter.send_message(message_data)
         # transmitter.bus.shutdown()
