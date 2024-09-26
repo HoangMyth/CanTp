@@ -6,9 +6,9 @@ from cantp import CanTp
 # When using ValueCAN you just need to change interface from "virtual" to "neovi"
 
 class TransmitterNode:
-    def __init__(self, channel='1', interface='virtual', bitrate = 500000):
+    def __init__(self, channel='1', interface='neovi', bitrate = 500000):
         # Use Virtual CAN bus
-        self.bus = can.interface.Bus(channel=channel, interface=interface, bitrate=bitrate)
+        self.bus = can.interface.Bus(channel=channel, interface=interface, bitrate=bitrate, receive_own_messages=False)
         self.cantp = CanTp(self.bus)
         self.sequence_number = 1
         
@@ -40,7 +40,11 @@ class TransmitterNode:
             # Waiting receiver First Frame and send Flow Control
             print("Waiting for Flow Control after First Frame...")
 
-            flow_control = self.bus.recv(timeout=2)  
+            # flow_control = self.bus.recv(timeout=1)  
+            while True:
+                flow_control = self.bus.recv(timeout=1)
+                if flow_control.arbitration_id == 0x123:
+                    break
             if flow_control is not None:
                 print(f"Received Flow Control: {list(flow_control.data)}")
 
@@ -72,8 +76,8 @@ class TransmitterNode:
 #When use ValueCAN for Transmit and Receive
 if __name__ == "__main__":
     with TransmitterNode(channel='1', interface='neovi', bitrate=500000) as transmitter:
-        # input_string = input("Ennter Your Data: \n")
-        # message_data = bytearray(input_string.encode('utf-8'))
-        message_data = bytearray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21])  #Data Transmit
+        input_string = input("Ennter Your Data: \n")
+        message_data = bytearray(input_string.encode())
+        # message_data = bytearray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21])  #Data Transmit
         transmitter.send_message(message_data)
         # transmitter.bus.shutdown()

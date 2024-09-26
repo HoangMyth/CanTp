@@ -3,9 +3,9 @@ from cantp import CanTp
 
 # When using ValueCAN you just need to change interface from "virtual" to "neovi"
 class ReceiverNode:
-    def __init__(self, channel='1', interface='virtual', bitrate= 500000):
+    def __init__(self, channel='1', interface='neovi', bitrate= 500000):
         #Virtual CAN bus
-        self.bus = can.interface.Bus(channel=channel, interface=interface, bitrate=bitrate)
+        self.bus = can.interface.Bus(channel=channel, interface=interface, bitrate=bitrate, receive_own_messages=False)
         self.cantp = CanTp(self.bus)
         
     def receive_message(self):
@@ -33,7 +33,7 @@ class ReceiverNode:
                     if remaining_data_length <= 0:
                         print("Reassembled message successfully!")
                         #Print full Message                      
-                        print(f"Full message received (bytes): {list(self.cantp.received_data)}")
+                        print(f"Full message received (bytes): {self.cantp.received_data.decode()}")
                         print("\n")
                         break
 

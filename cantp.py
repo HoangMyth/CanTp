@@ -26,9 +26,13 @@ class CanTp:
         self.total_length = 0
         self.bus = bus
         self.can_type = can_type
+        self.buffer_size = 50 
+        self.current_data_size = 0
 
     def fragment(self, data):
         frames = []
+        if isinstance(data, str):
+            data = bytearray(data.encode('utf-8'))
         data_length = len(data)
         
         if self.can_type == CanType.CAN_2_0:
@@ -45,9 +49,11 @@ class CanTp:
                 # Consecutive Frames
                 while data:
                     self.sequence_number += 1
+                    self.sequence_number %= 16
+                    
                     frame_data = list(data[:7])
                     
-                    # Nếu consecutive frame cuối không đủ 7 byte, thêm padding
+                    # If last consecutive frame not enough 7 byte, add padding
                     if len(frame_data) < 7:
                         frame_data += [0x00] * (7 - len(frame_data))
                     
@@ -63,8 +69,8 @@ class CanTp:
                 # First Frame
                 pci_higherbit = 0x10 | (data_length >> 8)
                 pci_lowerbit = data_length & 0xFF
-                frames.append([pci_higherbit, pci_lowerbit] + list(data[:62]))  # CAN FD First Frame can contain 62 bytes
-                data = data[62:]
+                frames.append([pci_higherbit, pci_lowerbit] + list(data[:6]))  # CAN FD First Frame can contain 62 bytes
+                data = data[6:]
 
                 # Consecutive Frames
                 while data:
@@ -118,6 +124,7 @@ class CanTp:
                 self.received_data.extend(frame[1:64])  # CAN FD Consecutive Frame can contain 63 byte
 
             self.sequence_number += 1  # Increase the order number
+            self.sequence_number %= 16  # Reset sequence number về 0 when achieve 15
             
             # Check Data received enough
             if len(self.received_data) >= self.total_length:
@@ -126,7 +133,7 @@ class CanTp:
 
         return False  # Not enough data received
     
-    def send_flow_control(self, control_type, block_size=3, st_min=0):
+    def send_flow_control(self, control_type, block_size=3, st_min=250):
         #Sent FlowCon trol
         if control_type == 'CTS':
             flow_status = 0x00  # Continue to Send
@@ -147,9 +154,9 @@ class CanTp:
 
         # Send frame Flow Control
         if self.can_type == CanType.CAN_FD:
-            message = can.Message(arbitration_id=0x7DF, data=flow_control_frame, is_extended_id=False, is_fd=True)
+            message = can.Message(arbitration_id=0x123, data=flow_control_frame, is_extended_id=False, is_fd=True)
         else:
-            message = can.Message(arbitration_id=0x7DF, data=flow_control_frame, is_extended_id=False, is_fd=False)
+            message = can.Message(arbitration_id=0x123, data=flow_control_frame, is_extended_id=False, is_fd=False)
 
         self.bus.send(message)
         print(f"Sent Flow Control frame: {flow_control_frame}")
