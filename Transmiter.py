@@ -51,7 +51,7 @@ class TransmitterNode:
                 if flow_control.data[0] & 0x0F == 0x00:  # If Continue To Send (CTS)
                     block_size = flow_control.data[1]  # Take block size từ Flow Control
         
-                    # Send countinuously Consecutive Frames equa block size
+                    # Send countinuously Consecutive Frames equal block size
                     frame_count = 0
                     for i in range(1, len(frames)):
                         frame = frames[i]

@@ -20,7 +20,7 @@ class CanType(Enum):
     CAN_FD              = 1
     
 class CanTp:
-    def __init__(self, bus, can_type=CanType.CAN_2_0):
+    def __init__(self, bus, can_type=CanType.CAN_FD):
         self.sequence_number = 0
         self.received_data = bytearray()
         self.total_length = 0
@@ -77,7 +77,7 @@ class CanTp:
                     self.sequence_number += 1
                     frame_data = list(data[:63])
                     
-                    # Nếu consecutive frame cuối không đủ 63 byte, thêm padding
+                    # Padding to last Consecutive frame
                     if len(frame_data) < 63:
                         frame_data += [0x00] * (63 - len(frame_data))
                     

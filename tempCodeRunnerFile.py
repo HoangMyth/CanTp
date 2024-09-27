@@ -1,1 +1,1 @@
-receive_own_message=False
+eassembled message s
